@@ -14,14 +14,45 @@ substitutions:
   # Keep this short: it is shown on the e-ink display.
   friendlyname: AirQ
   location: Living Room
-  fallback_timezone: "Etc/UTC"
+  fallback_timezone: "Europe/Lisbon"
   clock_hours: "24"
   display_temperature_scale: "C"
+  # Altitude de Rio Tinto / Gondomar (~120m) para compensação do sensor de CO2 SCD40
+  altitude_compensation: "120m"
+  # Offset de temperatura interno do SEN55
+  temp_offset: "-3.0"
+  
+  # Credenciais (podes usar o secrets.yaml do ESPHome ou colar diretamente entre aspas)
   wifi_ssid: !secret wifi_ssid
   wifi_password: !secret wifi_password
   api_encryption_key: !secret api_encryption_key
   ota_password: !secret ota_password
   fallback_ap_password: !secret fallback_ap_password
 
+# Importa toda a engenharia de bateria, perfis Auto/Max/Eco e ecrã do repositório
 packages:
   airq: !include package/airq.yaml
+
+# Override local: Usa o fuso horário de Portugal no relógio do Home Assistant
+time:
+  - id: !extend ha_time
+    timezone: "Europe/Lisbon"
+
+# Override local: Corrige a Temperatura e Humidade para usar o SEN55 (ventilado)
+# em vez de fazer a média com o SCD40 sobreaquecido (só usa o SCD40 se o SEN55 falhar)
+sensor:
+  - id: !extend temperature
+    lambda: |-
+      const float a = id(sen55_temperature).state;
+      const float b = id(CO2_temperature).state;
+      if (!isnan(a)) return a - id(temperature_offset).state;
+      if (!isnan(b)) return b - id(temperature_offset).state;
+      return {};
+
+  - id: !extend humidity
+    lambda: |-
+      const float a = id(sen55_humidity).state;
+      const float b = id(CO2_humidity).state;
+      if (!isnan(a)) return a - id(humidity_offset).state;
+      if (!isnan(b)) return b - id(humidity_offset).state;
+      return {};
