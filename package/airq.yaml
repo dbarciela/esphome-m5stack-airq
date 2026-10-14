@@ -789,27 +789,29 @@ sensor:
 binary_sensor:
   - platform: gpio
     name: Button A
-    disabled_by_default: true
     pin:
       number: GPIO0
       ignore_strapping_warning: true
       mode:
         input: true
       inverted: true
-    on_press:
+    on_click:
       then:
+        - display.page.show_next: disp
         - component.update: disp
 
   - platform: gpio
     pin:
       number: GPIO08
-      #      ignore_strapping_warning: true
       mode:
         input: true
         pullup: true
       inverted: true
     name: Button B
-    disabled_by_default: true
+    on_click:
+      then:
+        - display.page.show_previous: disp
+        - component.update: disp
 
   - platform: gpio
     pin:
@@ -921,156 +923,349 @@ display:
     full_update_every: 20
     reset_duration: 2ms
     update_interval: $sensor_interval
-    lambda: |-
-      // 1) Warming up: first 120 s, show message only
-      if (id(uptime_sensor).state < 120) {
-        it.fill(COLOR_OFF);
-        it.printf(it.get_width()/2, it.get_height()/2 - 16,
-                  id(f18), COLOR_ON, TextAlign::CENTER,
-                  "Warming up sensors");
-        it.printf(it.get_width()/2, it.get_height()/2 + 16,
-                  id(f16), COLOR_ON, TextAlign::CENTER,
-                  "Waiting for 2 minutes");
-        return;
-      }
-
-      // 2) Grid lines
-      // Vertical divider
-      it.line(100, 0,   100, 200);
-      // Top horizontal divider (optional)
-      //it.line(0,   50, 200, 0);
-      // Mid line under SEN55, right side only (x ≥ 100)
-      // it.line(100,120,200,120);
-      // Right edge
-      it.line(it.get_width()-1, 0, it.get_width()-1, it.get_height());
-
-      // 3) Layout regions (footer band y 152–200; sensor columns end above)
-      // SCD40: bottom-left, no bottom border on inner box
-      it.line(0,   50, 0,   152);   // left edge
-      it.line(0,   50, 100, 50);    // top edge
-      //it.line(100, 50, 100,152);    // right edge of left column
-      // SEN55: top-right (y 0–152)
-      it.rectangle(100, 0, 100, 152);
-      // Wi-Fi: bottom-right (y 152–200)
-      //it.rectangle(100,152,100, 48);
-      // Optional: bottom-left panel for a logo
-      it.rectangle(0, 152,100, 48);
-
-      // 4) Clock & date — HA when API connected; else SNTP + fallback_timezone
-      char buf[24];
-      if (global_api_server->is_connected() && id(ha_time).now().is_valid()) {
-        auto t = id(ha_time).now();
-        if (strcmp("${clock_hours}", "12") == 0) {
-          int h12 = t.hour % 12;
-          if (h12 == 0) {
-            h12 = 12;
+    pages:
+      - id: page_air_quality
+        lambda: |-
+          // 1) Warming up: first 120 s, show message only
+          if (id(uptime_sensor).state < 120) {
+            it.fill(COLOR_OFF);
+            it.printf(it.get_width()/2, it.get_height()/2 - 16,
+                      id(f18), COLOR_ON, TextAlign::CENTER,
+                      "Warming up sensors");
+            it.printf(it.get_width()/2, it.get_height()/2 + 16,
+                      id(f16), COLOR_ON, TextAlign::CENTER,
+                      "Waiting for 2 minutes");
+            return;
           }
-          const char *suffix = (t.hour < 12) ? "AM" : "PM";
-          snprintf(buf, sizeof(buf), "%d:%02d %s", h12, t.minute, suffix);
-        } else {
-          snprintf(buf, sizeof(buf), "%02d:%02d", t.hour, t.minute);
-        }
-        it.printf(2, 0, id(f24), COLOR_ON, TextAlign::TOP_LEFT, "%s", buf);
-        t.strftime(buf, sizeof(buf), "%Y-%m-%d");
-        it.printf(2, 30, id(f13), COLOR_ON, TextAlign::TOP_LEFT, "%s", buf);
-      } else if (id(sntp_time).now().is_valid()) {
-        auto t = id(sntp_time).now();
-        if (strcmp("${clock_hours}", "12") == 0) {
-          int h12 = t.hour % 12;
-          if (h12 == 0) {
-            h12 = 12;
+    
+          // 2) Grid lines
+          // Vertical divider
+          it.line(100, 0,   100, 200);
+          // Top horizontal divider (optional)
+          //it.line(0,   50, 200, 0);
+          // Mid line under SEN55, right side only (x ≥ 100)
+          // it.line(100,120,200,120);
+          // Right edge
+          it.line(it.get_width()-1, 0, it.get_width()-1, it.get_height());
+    
+          // 3) Layout regions (footer band y 152–200; sensor columns end above)
+          // SCD40: bottom-left, no bottom border on inner box
+          it.line(0,   50, 0,   152);   // left edge
+          it.line(0,   50, 100, 50);    // top edge
+          //it.line(100, 50, 100,152);    // right edge of left column
+          // SEN55: top-right (y 0–152)
+          it.rectangle(100, 0, 100, 152);
+          // Wi-Fi: bottom-right (y 152–200)
+          //it.rectangle(100,152,100, 48);
+          // Optional: bottom-left panel for a logo
+          it.rectangle(0, 152,100, 48);
+    
+          // 4) Clock & date — HA when API connected; else SNTP + fallback_timezone
+          char buf[24];
+          if (global_api_server->is_connected() && id(ha_time).now().is_valid()) {
+            auto t = id(ha_time).now();
+            if (strcmp("${clock_hours}", "12") == 0) {
+              int h12 = t.hour % 12;
+              if (h12 == 0) {
+                h12 = 12;
+              }
+              const char *suffix = (t.hour < 12) ? "AM" : "PM";
+              snprintf(buf, sizeof(buf), "%d:%02d %s", h12, t.minute, suffix);
+            } else {
+              snprintf(buf, sizeof(buf), "%02d:%02d", t.hour, t.minute);
+            }
+            it.printf(2, 0, id(f24), COLOR_ON, TextAlign::TOP_LEFT, "%s", buf);
+            t.strftime(buf, sizeof(buf), "%Y-%m-%d");
+            it.printf(2, 30, id(f13), COLOR_ON, TextAlign::TOP_LEFT, "%s", buf);
+          } else if (id(sntp_time).now().is_valid()) {
+            auto t = id(sntp_time).now();
+            if (strcmp("${clock_hours}", "12") == 0) {
+              int h12 = t.hour % 12;
+              if (h12 == 0) {
+                h12 = 12;
+              }
+              const char *suffix = (t.hour < 12) ? "AM" : "PM";
+              snprintf(buf, sizeof(buf), "%d:%02d %s", h12, t.minute, suffix);
+            } else {
+              snprintf(buf, sizeof(buf), "%02d:%02d", t.hour, t.minute);
+            }
+            it.printf(2, 0, id(f24), COLOR_ON, TextAlign::TOP_LEFT, "%s", buf);
+            t.strftime(buf, sizeof(buf), "%Y-%m-%d");
+            it.printf(2, 30, id(f13), COLOR_ON, TextAlign::TOP_LEFT, "%s", buf);
+          } else {
+            it.print(2, 0, id(f24), COLOR_ON, TextAlign::TOP_LEFT, "--:--");
+            it.print(2, 30, id(f13), COLOR_ON, TextAlign::TOP_LEFT, "----/--/--");
           }
-          const char *suffix = (t.hour < 12) ? "AM" : "PM";
-          snprintf(buf, sizeof(buf), "%d:%02d %s", h12, t.minute, suffix);
-        } else {
-          snprintf(buf, sizeof(buf), "%02d:%02d", t.hour, t.minute);
-        }
-        it.printf(2, 0, id(f24), COLOR_ON, TextAlign::TOP_LEFT, "%s", buf);
-        t.strftime(buf, sizeof(buf), "%Y-%m-%d");
-        it.printf(2, 30, id(f13), COLOR_ON, TextAlign::TOP_LEFT, "%s", buf);
-      } else {
-        it.print(2, 0, id(f24), COLOR_ON, TextAlign::TOP_LEFT, "--:--");
-        it.print(2, 30, id(f13), COLOR_ON, TextAlign::TOP_LEFT, "----/--/--");
-      }
+    
+          // 5) SCD40 (left column x=0–100): hug left rule + mid divider; pull values left toward labels
+          it.printf(2, 52,  id(f16), COLOR_ON, TextAlign::TOP_LEFT, "SCD40");
+          it.printf(2, 75,  id(sensor_label_font), COLOR_ON, TextAlign::TOP_LEFT, "CO₂:");
+          it.printf(96, 75,  id(f16_bold), COLOR_ON, TextAlign::TOP_RIGHT, "%.0f", id(CO2).state);
+          it.printf(2, 95,  id(sensor_label_font), COLOR_ON, TextAlign::TOP_LEFT, "Temp:");
+          {
+            float temp_c = id(temperature).state;
+            if (strcmp("${display_temperature_scale}", "F") == 0) {
+              char temp_buf[16];
+              float temp_f = isnan(temp_c) ? temp_c : (temp_c * 9.0f / 5.0f + 32.0f);
+              snprintf(temp_buf, sizeof(temp_buf), "%.1fF", temp_f);
+              it.printf(96, 95, id(f16_bold), COLOR_ON, TextAlign::TOP_RIGHT, "%s", temp_buf);
+            } else {
+              it.printf(96, 95, id(f16_bold), COLOR_ON, TextAlign::TOP_RIGHT, "%.1f", temp_c);
+            }
+          }
+          it.printf(2, 115, id(sensor_label_font), COLOR_ON, TextAlign::TOP_LEFT, "Humid:");
+          it.printf(96, 115, id(f16_bold), COLOR_ON, TextAlign::TOP_RIGHT, "%.1f", id(humidity).state);
+    
+          // 6) SEN55 (right column x=100–199): hug divider + right rule; pull values left toward labels
+          it.printf(101, 2, id(f16), COLOR_ON, TextAlign::TOP_LEFT, "SEN55");
+          const char* labels[] = {"PM1.0:","PM2.5:","PM4.0:","PM10:","VOC:","NOX:"};
+          float vals[] = {
+            id(PM1_0).state, id(PM2_5).state, id(PM4_0).state, id(PM10_0).state,
+            id(voc).state, id(nox).state
+          };
+          for(int i = 0; i < 6; i++) {
+            int y = 25 + i * 20;
+            it.printf(101, y, id(sensor_label_font), COLOR_ON, TextAlign::TOP_LEFT,  labels[i]);
+            it.printf(196, y, id(f16_bold), COLOR_ON, TextAlign::TOP_RIGHT,
+                      i < 4 ? "%.1f" : "%.0f", vals[i]);
+          }
+    
+          // 7) Wi-Fi (bottom-right, y 152–200)
+          it.printf(101, 153, id(f16), COLOR_ON, TextAlign::TOP_LEFT, "WIFI");
+          it.printf(101, 174, id(sensor_label_font), COLOR_ON, TextAlign::TOP_LEFT, "%s", id(ssid).state.c_str());
+    
+          // 8) Battery % + power-profile icon + friendly name (bottom-left, inverted panel)
+          // Icon Y is above the fill so Material Symbols' empty glyph padding clips away and
+          // the visible ink sits near the top of the black box (clears AirQ below).
+          it.filled_rectangle(1, 153, 98, 46, COLOR_ON);
+          it.print(1, 146, id(font_profile_icon), COLOR_OFF, TextAlign::TOP_LEFT,
+                   id(on_battery) ? "\U0000EA35" : "\U0000E9E4");
+          if (!isnan(id(battery_percent).state)) {
+            it.printf(72, 160, id(f13), COLOR_OFF, TextAlign::CENTER, "%.0f%%",
+                      id(battery_percent).state);
+          } else {
+            it.print(72, 160, id(f13), COLOR_OFF, TextAlign::CENTER, "--%");
+          }
+          it.print(50, 184, id(f18), COLOR_OFF, TextAlign::CENTER, "${friendlyname}");
 
-      // 5) SCD40 (left column x=0–100): hug left rule + mid divider; pull values left toward labels
-      it.printf(2, 52,  id(f16), COLOR_ON, TextAlign::TOP_LEFT, "SCD40");
-      it.printf(2, 75,  id(sensor_label_font), COLOR_ON, TextAlign::TOP_LEFT, "CO₂:");
-      it.printf(96, 75,  id(f16_bold), COLOR_ON, TextAlign::TOP_RIGHT, "%.0f", id(CO2).state);
-      it.printf(2, 95,  id(sensor_label_font), COLOR_ON, TextAlign::TOP_LEFT, "Temp:");
-      {
-        float temp_c = id(temperature).state;
-        if (strcmp("${display_temperature_scale}", "F") == 0) {
-          char temp_buf[16];
-          float temp_f = isnan(temp_c) ? temp_c : (temp_c * 9.0f / 5.0f + 32.0f);
-          snprintf(temp_buf, sizeof(temp_buf), "%.1fF", temp_f);
-          it.printf(96, 95, id(f16_bold), COLOR_ON, TextAlign::TOP_RIGHT, "%s", temp_buf);
-        } else {
-          it.printf(96, 95, id(f16_bold), COLOR_ON, TextAlign::TOP_RIGHT, "%.1f", temp_c);
-        }
-      }
-      it.printf(2, 115, id(sensor_label_font), COLOR_ON, TextAlign::TOP_LEFT, "Humid:");
-      it.printf(96, 115, id(f16_bold), COLOR_ON, TextAlign::TOP_RIGHT, "%.1f", id(humidity).state);
+      - id: page_weather
+        lambda: |-
+          it.fill(COLOR_OFF);
 
-      // 6) SEN55 (right column x=100–199): hug divider + right rule; pull values left toward labels
-      it.printf(101, 2, id(f16), COLOR_ON, TextAlign::TOP_LEFT, "SEN55");
-      const char* labels[] = {"PM1.0:","PM2.5:","PM4.0:","PM10:","VOC:","NOX:"};
-      float vals[] = {
-        id(PM1_0).state, id(PM2_5).state, id(PM4_0).state, id(PM10_0).state,
-        id(voc).state, id(nox).state
-      };
-      for(int i = 0; i < 6; i++) {
-        int y = 25 + i * 20;
-        it.printf(101, y, id(sensor_label_font), COLOR_ON, TextAlign::TOP_LEFT,  labels[i]);
-        it.printf(196, y, id(f16_bold), COLOR_ON, TextAlign::TOP_RIGHT,
-                  i < 4 ? "%.1f" : "%.0f", vals[i]);
-      }
+          // Top Header Bar
+          it.filled_rectangle(0, 0, 200, 24, COLOR_ON);
+          it.printf(4, 3, id(f13), COLOR_OFF, TextAlign::TOP_LEFT, "EXTERIOR");
 
-      // 7) Wi-Fi (bottom-right, y 152–200)
-      it.printf(101, 153, id(f16), COLOR_ON, TextAlign::TOP_LEFT, "WIFI");
-      it.printf(101, 174, id(sensor_label_font), COLOR_ON, TextAlign::TOP_LEFT, "%s", id(ssid).state.c_str());
+          // Indicador de pagina 2 (ponto do meio preenchido)
+          it.filled_circle(170, 12, 2, COLOR_OFF);
+          it.filled_circle(180, 12, 3, COLOR_OFF);
+          it.filled_circle(190, 12, 2, COLOR_OFF);
 
-      // 8) Battery % + power-profile icon + friendly name (bottom-left, inverted panel)
-      // Icon Y is above the fill so Material Symbols' empty glyph padding clips away and
-      // the visible ink sits near the top of the black box (clears AirQ below).
-      it.filled_rectangle(1, 153, 98, 46, COLOR_ON);
-      it.print(1, 146, id(font_profile_icon), COLOR_OFF, TextAlign::TOP_LEFT,
-               id(on_battery) ? "\U0000EA35" : "\U0000E9E4");
-      if (!isnan(id(battery_percent).state)) {
-        it.printf(72, 160, id(f13), COLOR_OFF, TextAlign::CENTER, "%.0f%%",
-                  id(battery_percent).state);
-      } else {
-        it.print(72, 160, id(f13), COLOR_OFF, TextAlign::CENTER, "--%");
-      }
-      it.print(50, 184, id(f18), COLOR_OFF, TextAlign::CENTER, "${friendlyname}");
+          // Icone da condicao meteorologica
+          const char* cond = id(ext_condicao).state.c_str();
+          const char* w_icon = "\U0000E81A";
+          if (strcmp(cond, "clear-night") == 0) w_icon = "\U0000F159";
+          else if (strcmp(cond, "partlycloudy") == 0) w_icon = "\U0000F172";
+          else if (strcmp(cond, "cloudy") == 0) w_icon = "\U0000F15B";
+          else if (strcmp(cond, "rainy") == 0) w_icon = "\U0000F61E";
+          else if (strcmp(cond, "pouring") == 0) w_icon = "\U0000F61F";
+          else if (strcmp(cond, "lightning") == 0 || strcmp(cond, "lightning-rainy") == 0) w_icon = "\U0000EBDB";
+          else if (strcmp(cond, "snowy") == 0) w_icon = "\U0000F61C";
+          else if (strcmp(cond, "fog") == 0) w_icon = "\U0000E818";
+          else if (strcmp(cond, "windy") == 0) w_icon = "\U0000EFD8";
+
+          it.print(6, 32, id(font_weather_32), COLOR_ON, TextAlign::TOP_LEFT, w_icon);
+
+          // Temperatura Atual em destaque (32px)
+          float t_ext = id(ext_temp).state;
+          if (!isnan(t_ext)) {
+            it.printf(194, 28, id(f32), COLOR_ON, TextAlign::TOP_RIGHT, "%.1f°", t_ext);
+          } else {
+            it.print(194, 28, id(f32), COLOR_ON, TextAlign::TOP_RIGHT, "--.-°");
+          }
+
+          it.line(0, 72, 200, 72);
+
+          // Sensacao Termica e Humidade
+          float sens = id(ext_sensacao).state;
+          float hum = id(ext_humidade).state;
+          if (!isnan(sens)) {
+            it.printf(4, 76, id(f13), COLOR_ON, TextAlign::TOP_LEFT, "Sensação: %.1f°C", sens);
+          } else {
+            it.print(4, 76, id(f13), COLOR_ON, TextAlign::TOP_LEFT, "Sensação: --°C");
+          }
+          if (!isnan(hum)) {
+            it.printf(196, 76, id(f13), COLOR_ON, TextAlign::TOP_RIGHT, "Hum: %.0f%%", hum);
+          } else {
+            it.print(196, 76, id(f13), COLOR_ON, TextAlign::TOP_RIGHT, "Hum: --%%");
+          }
+
+          it.line(0, 96, 200, 96);
+
+          // Vento e Chuva Acumulada
+          float v_vento = id(ext_vento).state;
+          float d_vento = id(ext_vento_dir).state;
+          float r_chuva = id(ext_chuva_acum).state;
+
+          const char* dirs[] = {"N", "NE", "E", "SE", "S", "SO", "O", "NO"};
+          int dir_idx = 0;
+          if (!isnan(d_vento)) {
+            dir_idx = (int)((d_vento + 22.5f) / 45.0f) % 8;
+          }
+
+          it.print(4, 99, id(font_icons_18), COLOR_ON, TextAlign::TOP_LEFT, "\U0000EFD8");
+          if (!isnan(v_vento)) {
+            it.printf(24, 100, id(f13), COLOR_ON, TextAlign::TOP_LEFT, "%.0f km/h %s", v_vento, dirs[dir_idx]);
+          } else {
+            it.print(24, 100, id(f13), COLOR_ON, TextAlign::TOP_LEFT, "-- km/h");
+          }
+
+          it.print(112, 99, id(font_icons_18), COLOR_ON, TextAlign::TOP_LEFT, "\U0000F61E");
+          if (!isnan(r_chuva)) {
+            it.printf(132, 100, id(f13), COLOR_ON, TextAlign::TOP_LEFT, "%.1f mm", r_chuva);
+          } else {
+            it.print(132, 100, id(f13), COLOR_ON, TextAlign::TOP_LEFT, "0.0 mm");
+          }
+
+          it.line(0, 122, 200, 122);
+
+          // Pressao Barometrica e Radiacao Solar / UV
+          float press = id(ext_pressao).state;
+          float sol = id(ext_radiacao).state;
+          float uv = id(ext_uv).state;
+
+          if (!isnan(press)) {
+            it.printf(4, 126, id(f13), COLOR_ON, TextAlign::TOP_LEFT, "%.0f hPa", press);
+          } else {
+            it.print(4, 126, id(f13), COLOR_ON, TextAlign::TOP_LEFT, "-- hPa");
+          }
+
+          if (!isnan(sol) && sol > 0.0f) {
+            it.printf(196, 126, id(f13), COLOR_ON, TextAlign::TOP_RIGHT, "Sol: %.0f W/m²", sol);
+          } else {
+            it.print(196, 126, id(f13), COLOR_ON, TextAlign::TOP_RIGHT, "Sem Sol");
+          }
+
+          // Footer Invertido: Previsao Diaria IPMA
+          // Footer Invertido: Previsao Diaria IPMA
+          it.filled_rectangle(0, 150, 200, 50, COLOR_ON);
+          it.print(6, 154, id(sensor_label_font), COLOR_OFF, TextAlign::TOP_LEFT, "PREVISÃO DO DIA");
+
+          float p_max = id(prev_max).state;
+          float p_min = id(prev_min).state;
+          float p_chuva = id(prev_chuva).state;
+
+          if (!isnan(p_max) && !isnan(p_min)) {
+            it.printf(6, 175, id(f13), COLOR_OFF, TextAlign::TOP_LEFT, "Max: %.0f°  Min: %.0f°", p_max, p_min);
+          } else {
+            it.print(6, 175, id(f13), COLOR_OFF, TextAlign::TOP_LEFT, "Max: --°  Min: --°");
+          }
+
+          if (!isnan(p_chuva)) {
+            it.printf(194, 175, id(f13), COLOR_OFF, TextAlign::TOP_RIGHT, "Chuva: %.0f%%", p_chuva);
+          } else {
+            it.print(194, 175, id(f13), COLOR_OFF, TextAlign::TOP_RIGHT, "Chuva: 0%");
+          }
+
+      - id: page_energy
+        lambda: |-
+          it.fill(COLOR_OFF);
+
+          // Top Header Bar
+          it.filled_rectangle(0, 0, 200, 24, COLOR_ON);
+          it.printf(4, 3, id(f13), COLOR_OFF, TextAlign::TOP_LEFT, "FLUXO DE ENERGIA");
+
+          // Indicador de pagina 3 (terceiro ponto preenchido)
+          it.filled_circle(170, 12, 2, COLOR_OFF);
+          it.filled_circle(180, 12, 2, COLOR_OFF);
+          it.filled_circle(190, 12, 3, COLOR_OFF);
+
+          // Valores Instantaneos (Watts)
+          float sol_w = id(pwr_solar).state;
+          float rede_w = id(pwr_rede).state; // + = importa, - = exporta
+          if (isnan(sol_w) || sol_w < 0.0f) sol_w = 0.0f;
+          if (isnan(rede_w)) rede_w = 0.0f;
+
+          float casa_w = sol_w + rede_w;
+          if (casa_w < 0.0f) casa_w = 0.0f;
+
+          // Box 1: SOLAR (Topo Esquerdo)
+          it.rectangle(0, 24, 100, 48);
+          it.print(4, 27, id(font_icons_18), COLOR_ON, TextAlign::TOP_LEFT, "\U0000E81A");
+          it.print(26, 29, id(sensor_label_font), COLOR_ON, TextAlign::TOP_LEFT, "SOLAR");
+          it.printf(94, 50, id(f16_bold), COLOR_ON, TextAlign::TOP_RIGHT, "%.0f W", sol_w);
+
+          // Box 2: REDE (Topo Direito)
+          it.rectangle(100, 24, 100, 48);
+          it.print(104, 27, id(font_icons_18), COLOR_ON, TextAlign::TOP_LEFT, "\U0000EC1C");
+          if (rede_w >= 0.0f) {
+            it.print(126, 29, id(sensor_label_font), COLOR_ON, TextAlign::TOP_LEFT, "IMPORTA");
+            it.printf(194, 50, id(f16_bold), COLOR_ON, TextAlign::TOP_RIGHT, "%.0f W", rede_w);
+          } else {
+            it.print(126, 29, id(sensor_label_font), COLOR_ON, TextAlign::TOP_LEFT, "EXPORTA");
+            it.printf(194, 50, id(f16_bold), COLOR_ON, TextAlign::TOP_RIGHT, "%.0f W", -rede_w);
+          }
+
+          // Box 3: CASA (Centro Grande Destaque)
+          it.rectangle(0, 72, 200, 58);
+          it.print(6, 76, id(font_icons_18), COLOR_ON, TextAlign::TOP_LEFT, "\U0000E88A");
+          it.print(28, 78, id(sensor_label_font), COLOR_ON, TextAlign::TOP_LEFT, "CONSUMO CASA");
+          it.printf(194, 98, id(f24), COLOR_ON, TextAlign::TOP_RIGHT, "%.0f W", casa_w);
+
+          it.line(0, 130, 200, 130);
+
+          // Box 4: Consumidores (3 Colunas)
+          float car_w = id(pwr_carro).state;
+          float aqs_w = id(pwr_aqs).state;
+          float ac_w = id(pwr_clima).state;
+          if (isnan(car_w) || car_w < 0.0f) car_w = 0.0f;
+          if (isnan(aqs_w) || aqs_w < 0.0f) aqs_w = 0.0f;
+          if (isnan(ac_w) || ac_w < 0.0f) ac_w = 0.0f;
+
+          it.print(4, 134, id(font_icons_18), COLOR_ON, TextAlign::TOP_LEFT, "\U0000E531");
+          it.print(26, 136, id(sensor_label_font), COLOR_ON, TextAlign::TOP_LEFT, "Carro");
+          it.printf(4, 168, id(f16_bold), COLOR_ON, TextAlign::TOP_LEFT, "%.0f W", car_w);
+
+          it.line(66, 130, 66, 200);
+
+          it.print(70, 134, id(font_icons_18), COLOR_ON, TextAlign::TOP_LEFT, "\U0000E7F1");
+          it.print(92, 136, id(sensor_label_font), COLOR_ON, TextAlign::TOP_LEFT, "AQS");
+          it.printf(70, 168, id(f16_bold), COLOR_ON, TextAlign::TOP_LEFT, "%.0f W", aqs_w);
+
+          it.line(133, 130, 133, 200);
+
+          it.print(137, 134, id(font_icons_18), COLOR_ON, TextAlign::TOP_LEFT, "\U0000EB3B");
+          it.print(159, 136, id(sensor_label_font), COLOR_ON, TextAlign::TOP_LEFT, "ACs");
+          it.printf(137, 168, id(f16_bold), COLOR_ON, TextAlign::TOP_LEFT, "%.0f W", ac_w);
+
 
 font:
   - file:
       type: gfonts
       family: Noto Sans Display
       weight: 500
-    glyphs: '&@!,.\"%()+-_:°0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ abcdefghijklmnopqrstuvwxyzåäö/µ³’'
+    glyphs: '&@!,.\"%()+-_:°0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ abcdefghijklmnopqrstuvwxyzåäöáàãâéêíóôõúçÁÀÃÂÉÊÍÓÔÕÚÇ/µ³’'
     id: f16
     size: 16
   - file:
       type: gfonts
       family: Noto Sans Display
       weight: 700
-    glyphs: '&@!,.\"%()+-_:°0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ abcdefghijklmnopqrstuvwxyzåäö/µ³’'
+    glyphs: '&@!,.\"%()+-_:°0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ abcdefghijklmnopqrstuvwxyzåäöáàãâéêíóôõúçÁÀÃÂÉÊÍÓÔÕÚÇ/µ³’'
     id: f16_bold
     size: 16
   - file:
       type: gfonts
       family: Noto Sans Display
       weight: 500
-    glyphs: '&@!,.\"%()+-_:°0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ abcdefghijklmnopqrstuvwxyzåäö/µ³’'
+    glyphs: '&@!,.\"%()+-_:°0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ abcdefghijklmnopqrstuvwxyzåäöáàãâéêíóôõúçÁÀÃÂÉÊÍÓÔÕÚÇ/µ³’'
     id: f18
     size: 18
   - file:
       type: gfonts
       family: Noto Sans Display
       weight: 500
-    glyphs: '&@!,.\"%()+-_:°0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ abcdefghijklmnopqrstuvwxyzåäö/µ³’'
+    glyphs: '&@!,.\"%()+-_:°0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ abcdefghijklmnopqrstuvwxyzåäöáàãâéêíóôõúçÁÀÃÂÉÊÍÓÔÕÚÇ/µ²³’'
     id: f13
     size: 13
   - file:
@@ -1086,14 +1281,14 @@ font:
       type: gfonts
       family: Noto Sans Display
       weight: 500
-    glyphs: '&@!,.\"%()+-_:°0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ abcdefghijklmnopqrstuvwxyzåäö/µ³₂’'
+    glyphs: '&@!,.\"%()+-_:°0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ abcdefghijklmnopqrstuvwxyzåäöáàãâéêíóôõúçÁÀÃÂÉÊÍÓÔÕÚÇ/µ³₂’'
     id: sensor_label_font
     size: 16
   - file:
       type: gfonts
       family: Noto Sans Display
       weight: 500
-    glyphs: '&@!,.\"%()+-_:°0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ abcdefghijklmnopqrstuvwxyzåäö/µ³’'
+    glyphs: '&@!,.\"%()+-_:°0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ abcdefghijklmnopqrstuvwxyzåäöáàãâéêíóôõúçÁÀÃÂÉÊÍÓÔÕÚÇ/µ³’'
     id: f24
     size: 24
   # Inactive alternate-layout fonts. Uncomment only when a display lambda uses them.
@@ -1224,3 +1419,47 @@ font:
   #   id: font_xsmall
   #   size: 16
   #   glyphs: '!"%()+=,-_.:°0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ abcdefghijklmnopqrstuvwxyz»'
+
+  - file:
+      type: gfonts
+      family: Noto Sans Display
+      weight: 500
+    glyphs: '&@!,.\"%()+-_:°0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ abcdefghijklmnopqrstuvwxyzåäöáàãâéêíóôõúçÁÀÃÂÉÊÍÓÔÕÚÇ/µ³₂’'
+    id: f32
+    size: 32
+
+  - file:
+      type: gfonts
+      family: Material Symbols Sharp
+      weight: 400
+    id: font_weather_32
+    size: 32
+    glyphs:
+      - "\U0000E81A" # sunny
+      - "\U0000F159" # clear-night
+      - "\U0000F172" # partlycloudy
+      - "\U0000F15B" # cloudy
+      - "\U0000F61E" # rainy
+      - "\U0000F61F" # pouring
+      - "\U0000EBDB" # lightning
+      - "\U0000F61C" # snowy
+      - "\U0000E818" # fog
+      - "\U0000EFD8" # windy
+
+  - file:
+      type: gfonts
+      family: Material Symbols Sharp
+      weight: 400
+    id: font_icons_18
+    size: 18
+    glyphs:
+      - "\U0000E81A" # solar / sun
+      - "\U0000EC1C" # electric_bolt / grid
+      - "\U0000E88A" # home
+      - "\U0000E531" # car
+      - "\U0000E7F1" # water / boiler
+      - "\U0000EB3B" # ac / mode_fan
+      - "\U0000EFD8" # wind
+      - "\U0000F61E" # rain
+
+

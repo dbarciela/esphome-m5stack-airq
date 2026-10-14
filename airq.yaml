@@ -38,8 +38,12 @@ time:
   - id: !extend ha_time
     timezone: "Europe/Lisbon"
 
-# Override local: Corrige a Temperatura e Humidade para usar o SEN55 (ventilado)
-# em vez de fazer a média com o SCD40 sobreaquecido (só usa o SCD40 se o SEN55 falhar)
+text_sensor:
+  - platform: homeassistant
+    id: ext_condicao
+    entity_id: sensor.gondomar_previsao_condicao
+
+# Overrides e Sensores importados
 sensor:
   - id: !extend temperature
     lambda: |-
@@ -56,3 +60,74 @@ sensor:
       if (!isnan(a)) return a - id(humidity_offset).state;
       if (!isnan(b)) return b - id(humidity_offset).state;
       return {};
+
+  # Dados Meteorológicos Exterior (Estação IRIOTI7)
+  - platform: homeassistant
+    id: ext_temp
+    entity_id: sensor.irioti7_temperatura
+
+  - platform: homeassistant
+    id: ext_humidade
+    entity_id: sensor.irioti7_humidade
+
+  - platform: homeassistant
+    id: ext_sensacao
+    entity_id: sensor.irioti7_sensacao_termica
+
+  - platform: homeassistant
+    id: ext_vento
+    entity_id: sensor.irioti7_velocidade_do_vento
+
+  - platform: homeassistant
+    id: ext_vento_dir
+    entity_id: sensor.irioti7_direcao_do_vento
+
+  - platform: homeassistant
+    id: ext_chuva_acum
+    entity_id: sensor.irioti7_precipitacao_acumulada
+
+  - platform: homeassistant
+    id: ext_pressao
+    entity_id: sensor.irioti7_pressao_atmosferica
+
+  - platform: homeassistant
+    id: ext_radiacao
+    entity_id: sensor.irioti7_radiacao_solar
+
+  - platform: homeassistant
+    id: ext_uv
+    entity_id: sensor.irioti7_indice_uv
+
+  # Previsão Diária (IPMA / Gondomar)
+  - platform: homeassistant
+    id: prev_max
+    entity_id: sensor.gondomar_previsao_max
+
+  - platform: homeassistant
+    id: prev_min
+    entity_id: sensor.gondomar_previsao_min
+
+  - platform: homeassistant
+    id: prev_chuva
+    entity_id: sensor.gondomar_previsao_chuva
+
+  # Fluxo de Energia Instantâneo (Watts)
+  - platform: homeassistant
+    id: pwr_solar
+    entity_id: sensor.paineis_geral_power_a
+
+  - platform: homeassistant
+    id: pwr_rede
+    entity_id: sensor.geral_signed
+
+  - platform: homeassistant
+    id: pwr_carro
+    entity_id: sensor.pm_carregador_auto_power
+
+  - platform: homeassistant
+    id: pwr_aqs
+    entity_id: sensor.shelly_aqs_power
+
+  - platform: homeassistant
+    id: pwr_clima
+    entity_id: sensor.potencia_climatizacao
