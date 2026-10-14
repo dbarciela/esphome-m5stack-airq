@@ -939,28 +939,17 @@ display:
           }
     
           // 2) Grid lines
-          // Vertical divider
-          it.line(100, 0,   100, 200);
-          // Top horizontal divider (optional)
-          //it.line(0,   50, 200, 0);
-          // Mid line under SEN55, right side only (x ≥ 100)
-          // it.line(100,120,200,120);
-          // Right edge
-          it.line(it.get_width()-1, 0, it.get_width()-1, it.get_height());
-    
-          // 3) Layout regions (footer band y 152–200; sensor columns end above)
-          // SCD40: bottom-left, no bottom border on inner box
-          it.line(0,   50, 0,   152);   // left edge
-          it.line(0,   50, 100, 50);    // top edge
-          //it.line(100, 50, 100,152);    // right edge of left column
-          // SEN55: top-right (y 0–152)
-          it.rectangle(100, 0, 100, 152);
-          // Wi-Fi: bottom-right (y 152–200)
-          //it.rectangle(100,152,100, 48);
-          // Optional: bottom-left panel for a logo
-          it.rectangle(0, 152,100, 48);
-    
-          // 4) Clock & date — HA when API connected; else SNTP + fallback_timezone
+          // Linha divisoria central limpa (Y 0 a 168 - para antes do rodape)
+          it.line(100, 0, 100, 168);
+          // Linha horizontal sob o relogio/data
+          it.line(0, 48, 100, 48);
+          // Borda direita
+          it.line(it.get_width()-1, 0, it.get_width()-1, 168);
+
+          // 3) Bloco SEN55 (coluna direita Y 0 a 168)
+          it.rectangle(100, 0, 100, 168);
+
+          // 4) Relogio & data
           char buf[24];
           if (global_api_server->is_connected() && id(ha_time).now().is_valid()) {
             auto t = id(ha_time).now();
@@ -974,9 +963,9 @@ display:
             } else {
               snprintf(buf, sizeof(buf), "%02d:%02d", t.hour, t.minute);
             }
-            it.printf(2, 0, id(f24), COLOR_ON, TextAlign::TOP_LEFT, "%s", buf);
+            it.printf(4, 2, id(f24), COLOR_ON, TextAlign::TOP_LEFT, "%s", buf);
             t.strftime(buf, sizeof(buf), "%Y-%m-%d");
-            it.printf(2, 30, id(f13), COLOR_ON, TextAlign::TOP_LEFT, "%s", buf);
+            it.printf(4, 30, id(f13), COLOR_ON, TextAlign::TOP_LEFT, "%s", buf);
           } else if (id(sntp_time).now().is_valid()) {
             auto t = id(sntp_time).now();
             if (strcmp("${clock_hours}", "12") == 0) {
@@ -989,99 +978,95 @@ display:
             } else {
               snprintf(buf, sizeof(buf), "%02d:%02d", t.hour, t.minute);
             }
-            it.printf(2, 0, id(f24), COLOR_ON, TextAlign::TOP_LEFT, "%s", buf);
+            it.printf(4, 2, id(f24), COLOR_ON, TextAlign::TOP_LEFT, "%s", buf);
             t.strftime(buf, sizeof(buf), "%Y-%m-%d");
-            it.printf(2, 30, id(f13), COLOR_ON, TextAlign::TOP_LEFT, "%s", buf);
+            it.printf(4, 30, id(f13), COLOR_ON, TextAlign::TOP_LEFT, "%s", buf);
           } else {
-            it.print(2, 0, id(f24), COLOR_ON, TextAlign::TOP_LEFT, "--:--");
-            it.print(2, 30, id(f13), COLOR_ON, TextAlign::TOP_LEFT, "----/--/--");
+            it.print(4, 2, id(f24), COLOR_ON, TextAlign::TOP_LEFT, "--:--");
+            it.print(4, 30, id(f13), COLOR_ON, TextAlign::TOP_LEFT, "----/--/--");
           }
-    
-          // 5) SCD40 (left column x=0–100)
-          it.printf(2, 52,  id(sensor_label_font), COLOR_ON, TextAlign::TOP_LEFT, "Temp:");
+
+          // 5) SCD40 Temperatura e Humidade (coluna esquerda Y 48 a 104)
+          it.printf(4, 56, id(sensor_label_font), COLOR_ON, TextAlign::TOP_LEFT, "Temp:");
           {
             float temp_c = id(temperature).state;
             if (strcmp("${display_temperature_scale}", "F") == 0) {
               char temp_buf[16];
               float temp_f = isnan(temp_c) ? temp_c : (temp_c * 9.0f / 5.0f + 32.0f);
               snprintf(temp_buf, sizeof(temp_buf), "%.1fF", temp_f);
-              it.printf(96, 52, id(f16_bold), COLOR_ON, TextAlign::TOP_RIGHT, "%s", temp_buf);
+              it.printf(96, 56, id(f16_bold), COLOR_ON, TextAlign::TOP_RIGHT, "%s", temp_buf);
             } else {
-              it.printf(96, 52, id(f16_bold), COLOR_ON, TextAlign::TOP_RIGHT, "%.1f", temp_c);
+              it.printf(96, 56, id(f16_bold), COLOR_ON, TextAlign::TOP_RIGHT, "%.1f°C", temp_c);
             }
           }
-          it.printf(2, 74, id(sensor_label_font), COLOR_ON, TextAlign::TOP_LEFT, "Humid:");
-          it.printf(96, 74, id(f16_bold), COLOR_ON, TextAlign::TOP_RIGHT, "%.0f%%", id(humidity).state);
-          it.printf(2, 96,  id(sensor_label_font), COLOR_ON, TextAlign::TOP_LEFT, "CO₂:");
-          it.printf(96, 96,  id(f16_bold), COLOR_ON, TextAlign::TOP_RIGHT, "%.0f", id(CO2).state);
+          it.printf(4, 80, id(sensor_label_font), COLOR_ON, TextAlign::TOP_LEFT, "Humid:");
+          it.printf(96, 80, id(f16_bold), COLOR_ON, TextAlign::TOP_RIGHT, "%.0f%%", id(humidity).state);
 
-          // Badge de Status da Qualidade do Ar (Y 122 a 162)
+          // Divisoria sob a Humidade (Y 104)
+          it.line(0, 104, 100, 104);
+
+          // 6) Indicador de Qualidade do Ar (coluna esquerda Y 104 a 168)
+          it.print(50, 112, id(f13), COLOR_ON, TextAlign::TOP_CENTER, "QUALIDADE AR");
+
           float co2_val = id(CO2).state;
           float pm25_val = id(PM2_5).state;
-          const char* statusText = "AR EXCELENTE";
-          const char* statusSub = "Qualidade Ótima";
+          const char* status = "EXCELENTE";
           bool isWarning = false;
 
           if (co2_val > 1400.0f || pm25_val > 35.0f) {
-            statusText = "VENTILAR";
-            statusSub = "Ar Saturado";
+            status = "VENTILAR";
             isWarning = true;
           } else if (co2_val > 1000.0f || pm25_val > 25.0f) {
-            statusText = "AR MODERADO";
-            statusSub = "Atenção CO2";
+            status = "MODERADO";
             isWarning = true;
           } else if (co2_val > 800.0f || pm25_val > 15.0f) {
-            statusText = "AR BOM";
-            statusSub = "Ar Aceitável";
+            status = "BOM";
           }
 
           if (isWarning) {
-            it.filled_rectangle(4, 122, 92, 40, COLOR_ON);
-            it.print(50, 126, id(f13), COLOR_OFF, TextAlign::CENTER, statusText);
-            it.print(50, 144, id(f13), COLOR_OFF, TextAlign::CENTER, statusSub);
+            it.filled_rectangle(6, 130, 88, 28, COLOR_ON);
+            it.print(50, 144, id(f16_bold), COLOR_OFF, TextAlign::CENTER, status);
           } else {
-            it.rectangle(4, 122, 92, 40, COLOR_ON);
-            it.print(50, 126, id(f13), COLOR_ON, TextAlign::CENTER, statusText);
-            it.print(50, 144, id(f13), COLOR_ON, TextAlign::CENTER, statusSub);
+            it.print(50, 140, id(f18), COLOR_ON, TextAlign::CENTER, status);
           }
 
-          // 6) SEN55 (right column x=100–199)
-          it.printf(101, 2, id(f16), COLOR_ON, TextAlign::TOP_LEFT, "SEN55");
-          const char* labels[] = {"PM1.0:","PM2.5:","PM4.0:","PM10:","VOC:","NOX:"};
+          // 7) Todas as 7 Métricas (Partículas 1º, Gases depois com CO2 por último)
+          const char* labels[] = {"PM1.0:","PM2.5:","PM4.0:","PM10:","VOC:","NOX:","CO₂:"};
           float vals[] = {
             id(PM1_0).state, id(PM2_5).state, id(PM4_0).state, id(PM10_0).state,
-            id(voc).state, id(nox).state
+            id(voc).state, id(nox).state,
+            id(CO2).state
           };
-          for(int i = 0; i < 6; i++) {
-            int y = 25 + i * 20;
-            it.printf(101, y, id(sensor_label_font), COLOR_ON, TextAlign::TOP_LEFT,  labels[i]);
+          for(int i = 0; i < 7; i++) {
+            int y = 6 + i * 23;
+            it.printf(104, y, id(sensor_label_font), COLOR_ON, TextAlign::TOP_LEFT, labels[i]);
             it.printf(196, y, id(f16_bold), COLOR_ON, TextAlign::TOP_RIGHT,
                       i < 4 ? "%.1f" : "%.0f", vals[i]);
           }
 
-          // 7) Divisoria do Rodapé
+          // 7) Divisoria do Rodape (Y 168)
           it.line(0, 168, 200, 168);
 
-          // 8) Rodapé Condensado (Y 168 a 200 - 32px)
+          // 8) Rodape Condensado (Y 168 a 200 - 32px)
           it.filled_rectangle(0, 168, 200, 32, COLOR_ON);
 
-          // Ícone do modo + percentagem bateria
-          it.print(6, 175, id(font_icons_18), COLOR_OFF, TextAlign::TOP_LEFT,
+          // Icone do modo + percentagem bateria perfeitamente centrados verticalmente em Y=184
+          it.print(6, 184, id(font_icons_18), COLOR_OFF, TextAlign::CENTER_LEFT,
                    id(on_battery) ? "\U0000EA35" : "\U0000E9E4");
           if (!isnan(id(battery_percent).state)) {
-            it.printf(28, 175, id(f16_bold), COLOR_OFF, TextAlign::TOP_LEFT, "%.0f%%",
+            it.printf(24, 184, id(f16_bold), COLOR_OFF, TextAlign::CENTER_LEFT, "%.0f%%",
                       id(battery_percent).state);
           } else {
-            it.print(28, 175, id(f16_bold), COLOR_OFF, TextAlign::TOP_LEFT, "--%");
+            it.print(24, 184, id(f16_bold), COLOR_OFF, TextAlign::CENTER_LEFT, "--%");
           }
 
-          // Indicador de página 1 (três pontos: o primeiro preenchido)
+          // Indicador de pagina 1 (tres pontos: o primeiro preenchido)
           it.filled_circle(92, 184, 3, COLOR_OFF);
           it.filled_circle(100, 184, 2, COLOR_OFF);
           it.filled_circle(108, 184, 2, COLOR_OFF);
 
-          // Nome da rede WiFi à direita
-          it.printf(194, 177, id(f13), COLOR_OFF, TextAlign::TOP_RIGHT, "%s", id(ssid).state.c_str());
+          // Nome da rede WiFi a direita perfeitamente centrado em Y=184
+          it.printf(194, 184, id(f13), COLOR_OFF, TextAlign::CENTER_RIGHT, "%s", id(ssid).state.c_str());
 
       - id: page_weather
         lambda: |-
@@ -1488,6 +1473,8 @@ font:
     id: font_icons_18
     size: 18
     glyphs:
+      - "\U0000EA35" # eco / leaf
+      - "\U0000E9E4" # speed / max
       - "\U0000E81A" # solar / sun
       - "\U0000EC1C" # electric_bolt / grid
       - "\U0000E88A" # home
